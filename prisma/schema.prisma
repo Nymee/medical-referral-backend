@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+
+model Doctor {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  specialty String
+  role      Role     @default(SPECIALIST)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+
+
+
+
+
+
+model Patient {
+  id           String     @id @default(uuid())
+  name         String
+  age          Int
+  createdAt    DateTime   @default(now())
+}
+
+
+
+
+
+
+
+
+
+model Referral {
+  id               String    @id @default(uuid())
+  
+  fromDoctorId     String
+  toDoctorId       String
+  patientId        String
+  
+  conditionCode    String
+  subCondition     String?
+  notes            String?
+  
+  patientAge       Int
+  status           ReferralStatus @default(PENDING)
+  firstVisitDate   DateTime?
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  // Relations (for convenience)
+  fromDoctor       Doctor   @relation("ReferralsFrom", fields: [fromDoctorId], references: [id])
+  toDoctor         Doctor   @relation("ReferralsTo", fields: [toDoctorId], references: [id])
+  patient          Patient  @relation(fields: [patientId], references: [id])
+  
+  outcome          Outcome?
+}
+
+
+
+
+
+
+
+
+model Outcome {
+  id               String         @id @default(uuid())
+  referralId       String         @unique
+  resolutionType   ResolutionType
+  daysToResolution Int
+  wasBoomerang     Boolean        @default(false)
+  notes            String?
+  loggedAt         DateTime       @default(now())
+  
+  referral         Referral       @relation(fields: [referralId], references: [id])
+}
+
+
+
+
+
+
+model Doctor {
+  id            String     @id @default(uuid())
+  email         String     @unique
+  password      String
+  name          String
+  specialty     String?
+  role          Role       @default(SPECIALIST)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  referralsFrom Referral[] @relation("ReferralsFrom")
+  referralsTo   Referral[] @relation("ReferralsTo")
+}
+
+
+
+
+
+
+enum ReferralStatus {
+  PENDING
+  PATIENT_VISITED
+  COMPLETED
+  REFERRED_AGAIN
+}
+
+enum ResolutionType {
+  FULLY_RESOLVED
+  IMPROVED
+  UNRESOLVED
+  REFERRED_FURTHER
+}
+
+enum Role {
+  PCP
+  SPECIALIST
+  ADMIN
+}
+
+
+
+
+
+
