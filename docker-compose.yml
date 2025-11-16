@@ -22,13 +22,15 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/medical_referral?schema=public
+      JWT_SECRET: super-secret-key-change-in-production
+
       NODE_ENV: development
     depends_on:
       - postgres
     volumes:
       - .:/app
       - /app/node_modules
-    command: npm run start:dev
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:dev"
 
 volumes:
   postgres_data:
