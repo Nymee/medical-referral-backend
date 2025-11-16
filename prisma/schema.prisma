@@ -16,16 +16,23 @@ datasource db {
 
 
 
+
+
 model Doctor {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  specialty String
-  role      Role     @default(SPECIALIST)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String     @id @default(uuid())
+  email         String     @unique
+  password      String
+  name          String
+  specialty     String?
+  role          Role       @default(SPECIALIST)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  referralsFrom Referral[] @relation("ReferralsFrom")
+  referralsTo   Referral[] @relation("ReferralsTo")
 }
+
+
 
 
 
@@ -96,22 +103,6 @@ model Outcome {
 
 
 
-
-
-
-model Doctor {
-  id            String     @id @default(uuid())
-  email         String     @unique
-  password      String
-  name          String
-  specialty     String?
-  role          Role       @default(SPECIALIST)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  
-  referralsFrom Referral[] @relation("ReferralsFrom")
-  referralsTo   Referral[] @relation("ReferralsTo")
-}
 
 
 
