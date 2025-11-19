@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -15,16 +20,16 @@ export class AuthService {
   async signup(signupDto: SignupDto) {
     // 1. Check if user exists
     const existingDoctor = await this.prisma.doctor.findUnique({
-      where: { email: signupDto.email }
+      where: { email: signupDto.email },
     });
 
     if (existingDoctor) {
       throw new ConflictException('Email already registered');
     }
 
-      if (signupDto.role === 'SPECIALIST' && !signupDto.specialty) {
-    throw new BadRequestException('Specialists must provide a specialty');
-  }
+    if (signupDto.role === 'SPECIALIST' && !signupDto.specialty) {
+      throw new BadRequestException('Specialists must provide a specialty');
+    }
 
     // 2. Hash password
     const hashedPassword = await bcrypt.hash(signupDto.password, 10);
@@ -52,10 +57,10 @@ export class AuthService {
     };
   }
 
-    async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto) {
     // 1. Find user by email
     const doctor = await this.prisma.doctor.findUnique({
-      where: { email: loginDto.email }
+      where: { email: loginDto.email },
     });
 
     if (!doctor) {
@@ -63,14 +68,17 @@ export class AuthService {
     }
 
     // 2. Compare password
-    const isPasswordValid = await bcrypt.compare(loginDto.password, doctor.password);
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      doctor.password,
+    );
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // 3. Generate JWT
-    const payload = { sub: doctor.id, email: doctor.email, role: doctor.role };
+    const payload = { id: doctor.id, email: doctor.email, role: doctor.role };
     const token = this.jwtService.sign(payload);
 
     // 4. Return token + user (without password)
@@ -79,5 +87,5 @@ export class AuthService {
       access_token: token,
       user: result,
     };
-  } 
+  }
 }
