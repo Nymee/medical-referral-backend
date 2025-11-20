@@ -78,8 +78,8 @@ export class AuthService {
     }
 
     // 3. Generate JWT
-    const payload = { id: doctor.id, email: doctor.email, role: doctor.role };
-    const token = this.jwtService.sign(payload);
+    const payload = { sub: doctor.id, email: doctor.email, role: doctor.role };
+    const token = this.jwtService.signAsync(payload);
 
     // 4. Return token + user (without password)
     const { password, ...result } = doctor;
