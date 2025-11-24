@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { Role } from '../common/enums';
 
 @Injectable()
 export class AuthService {
@@ -27,7 +28,7 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
-    if (signupDto.role === 'SPECIALIST' && !signupDto.specialty) {
+    if (signupDto.role === Role.SPECIALIST && !signupDto.specialty) {
       throw new BadRequestException('Specialists must provide a specialty');
     }
 

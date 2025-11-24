@@ -1,4 +1,5 @@
-import { IsEmail, IsNotEmpty, IsString, IsIn, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, IsEnum, MinLength, IsOptional } from 'class-validator';
+import { Role } from '../../common/enums';
 
 export class SignupDto {
   @IsEmail()
@@ -14,9 +15,9 @@ export class SignupDto {
   name: string;
 
   @IsString()
-  @IsNotEmpty()
-  specialty: string;
+  @IsOptional()
+  specialty?: string;
 
-  @IsIn(['PCP', 'SPECIALIST'])
-  role: 'PCP' | 'SPECIALIST';
+  @IsEnum(Role)
+  role: Role;
 }

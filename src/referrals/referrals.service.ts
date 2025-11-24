@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReferralDto } from './dto/create-referral.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ReferralsService {
@@ -9,6 +10,8 @@ export class ReferralsService {
   async createReferral(
     createReferralDto: CreateReferralDto,
     fromDoctorId: string,
+    tx: Prisma.TransactionClient,
+    referralOutcome: 
   ) {
     // 1. Verify patient exists
     const patient = await this.prisma.patient.findUnique({
