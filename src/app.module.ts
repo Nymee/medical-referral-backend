@@ -5,9 +5,10 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { ReferralsModule } from './referrals/referrals.module';
+import { OutcomesModule } from './outcomes/outcomes.module';
 
 @Module({
-  imports: [AuthModule, PrismaModule,ConfigModule.forRoot({ isGlobal: true }), ReferralsModule],
+  imports: [AuthModule, PrismaModule,ConfigModule.forRoot({ isGlobal: true }), ReferralsModule, OutcomesModule],
   controllers: [AppController],
   providers: [AppService],
 })

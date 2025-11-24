@@ -46,6 +46,8 @@ model Patient {
   name         String
   age          Int
   createdAt    DateTime   @default(now())
+
+  referrals    Referral[]
 }
 
 
@@ -92,13 +94,14 @@ model Referral {
 model Outcome {
   id               String         @id @default(uuid())
   referralId       String         @unique
-  resolutionType   ResolutionType
+  resolutionType   ResolutionType 
   daysToResolution Int
-  wasBoomerang     Boolean        @default(false)
   notes            String?
-  loggedAt         DateTime       @default(now())
+  createdAt        DateTime       @default(now())  // Changed from loggedAt
   
   referral         Referral       @relation(fields: [referralId], references: [id])
+    @@index([rootReferralId])  // Index for fast queries
+
 }
 
 
@@ -118,11 +121,10 @@ enum ReferralStatus {
 
 enum ResolutionType {
   FULLY_RESOLVED
-  IMPROVED
-  UNRESOLVED
   REFERRED_FURTHER
+  RESOLVED_REFERRED  // NEW
+  UNRESOLVED
 }
-
 enum Role {
   PCP
   SPECIALIST
