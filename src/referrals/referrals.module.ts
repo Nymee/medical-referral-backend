@@ -6,6 +6,7 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [AuthModule],
   controllers: [ReferralsController],
-  providers: [ReferralsService]
-})
+  providers: [ReferralsService],
+  exports: [ReferralsService]
+}   )
 export class ReferralsModule {}
