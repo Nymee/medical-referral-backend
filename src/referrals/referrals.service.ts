@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReferralDto } from './dto/create-referral.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { DbClient, ResolutionType } from 'src/common';
 
 @Injectable()
 export class ReferralsService {
@@ -10,8 +11,8 @@ export class ReferralsService {
   async createReferral(
     createReferralDto: CreateReferralDto,
     fromDoctorId: string,
-    tx: Prisma.TransactionClient,
-    referralOutcome: 
+    db?: DbClient,
+    referralOutcome?: ResolutionType,
   ) {
     // 1. Verify patient exists
     const patient = await this.prisma.patient.findUnique({
@@ -41,23 +42,27 @@ export class ReferralsService {
     let rootReferralId = null;
 
     if (fromDoctor.role === 'SPECIALIST') {
-      // This is a specialist referring to another specialist
-      // Find the referral that brought this patient to me
-      const previousReferral = await this.prisma.referral.findFirst({
-        where: {
-          toDoctorId: fromDoctorId, // Sent to ME
-          patientId: createReferralDto.patientId, // For THIS patient
-          conditionCode: createReferralDto.conditionCode, // Same condition
-        },
-        orderBy: { createdAt: 'desc' }, // Most recent
-      });
+      if (referralOutcome === ResolutionType.REFERRED_FURTHER) {
+        // This is a specialist referring to another specialist
+        // Find the referral that brought this patient to me
+        const previousReferral = await this.prisma.referral.findFirst({
+          where: {
+            toDoctorId: fromDoctorId, // Sent to ME
+            patientId: createReferralDto.patientId, // For THIS patient
+            conditionCode: createReferralDto.conditionCode, // Same condition
+          },
+          orderBy: { createdAt: 'desc' }, // Most recent
+        });
 
-      if (previousReferral) {
-        // This is a child referral
-        referralDepth = previousReferral.referralDepth + 1;
+        if (previousReferral) {
+          // This is a child referral
+          referralDepth = previousReferral.referralDepth + 1;
 
-        // Find the root of the chain
-        rootReferralId = previousReferral.rootReferralId || previousReferral.id;
+          // Find the root of the chain
+          rootReferralId =
+            previousReferral.rootReferralId || previousReferral.id;
+        }
+      } else if (referralOutcome === ResolutionType.RESOLVED_REFERRED) {
       }
     }
 

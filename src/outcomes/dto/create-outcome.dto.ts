@@ -1,5 +1,13 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  ValidateNested,
+} from 'class-validator';
 import { ResolutionType } from '../../common/enums';
+import { Type } from 'class-transformer';
+import { CreateReferralDto } from 'src/referrals/dto/create-referral.dto';
 
 export class CreateOutcomeDto {
   @IsString()
@@ -12,4 +20,9 @@ export class CreateOutcomeDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateReferralDto)
+  nextReferral?: CreateReferralDto; //
 }

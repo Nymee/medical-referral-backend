@@ -1,83 +1,102 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateOutcomeDto } from './dto/create-outcome.dto';
-import { DbClient } from 'src/common';
+import { DbClient, ResolutionType } from 'src/common';
+import { ReferralsService } from 'src/referrals/referrals.service';
+import { CreateReferralDto } from 'src/referrals/dto/create-referral.dto';
 
 @Injectable()
 export class OutcomesService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(OutcomesService.name);
 
-  async createOutcome(createOutcomeDto: CreateOutcomeDto, doctorId: string, db: DbClient = this.prisma) {
-    this.logger.log(
-      `Creating outcome for referral ${createOutcomeDto.referralId}`,
-    ) ;
+  constructor(
+    private prisma: PrismaService,
+    private referralService: ReferralsService,
+  ) {}
 
-    // Get referral
-    const referral = await this.prisma.referral.findUnique({
-      where: { id: createOutcomeDto.referralId },
+  async createOutcome(dto: CreateOutcomeDto, doctorId: string) {
+    const requiresTransaction =
+      dto.resolutionType === ResolutionType.REFERRED_FURTHER ||
+      dto.resolutionType === ResolutionType.RESOLVED_REFERRED;
+
+    if (requiresTransaction) {
+      this.logger.log(
+        `Outcome type requires referral creation — using transaction`,
+      );
+      return this.prisma.$transaction((tx) =>
+        this._createOutcomeInternal(dto, doctorId, tx),
+      );
+    }
+    this.logger.log(`Simple outcome — no referral, no transaction needed`);
+    return this._createOutcomeInternal(dto, doctorId, this.prisma);
+  }
+
+  private async _createOutcomeInternal(
+    dto: CreateOutcomeDto,
+    fromDoctorId: string,
+    db: DbClient,
+  ) {
+    const referral = await db.referral.findUnique({
+      where: { id: dto.referralId },
       include: { outcome: true },
     });
 
-    if (!referral) {
-      throw new NotFoundException('Referral not found');
-    }
+    if (!referral) throw new NotFoundException('Referral not found');
 
-    // Verify this doctor received the referral
-    if (referral.toDoctorId !== doctorId) {
+    // 2. Ensure doctor owns this referral
+    if (referral.toDoctorId !== fromDoctorId)
       throw new BadRequestException(
         'You can only log outcomes for referrals sent to you',
       );
-    }
 
-    // Check if outcome already exists
-    if (referral.outcome) {
+    // 3. Ensure not already resolved
+    if (referral.outcome)
       throw new BadRequestException('Outcome already exists for this referral');
-    }
 
-    // Verify patient visited
-    if (!referral.firstVisitDate) {
+    // 4. Validate visit
+    if (!referral.firstVisitDate)
       throw new BadRequestException(
         'Please mark patient as visited before logging outcome',
       );
-    }
 
-    // Calculate days to resolution
+    // 5. Compute days to resolution
     const daysToResolution = Math.floor(
-      (new Date().getTime() - referral.firstVisitDate.getTime()) /
-        (1000 * 60 * 60 * 24),
+      (Date.now() - referral.firstVisitDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
-    FULLY_RESOLVED
-  REFERRED_FURTHER
-  RESOLVED_REFERRED  // NEW
-  UNRESOLVED
-
-    if(createOutcomeDto.resolutionType == "REFERRED_FURTHER" ){
-
-      //continue chain.
-
-
-    }else if(createOutcomeDto.resolutionType == "RESOLVED_REFERRED"){
-
-      //logic to create new referral and end this current chain.
-
-
-
-    }
-
-    // Create outcome
-    const outcome = await this.prisma.outcome.create({
+    // 6. Create outcome
+    const outcome = await db.outcome.create({
       data: {
-        referralId: createOutcomeDto.referralId,
-        resolutionType: createOutcomeDto.resolutionType,
+        referralId: dto.referralId,
+        resolutionType: dto.resolutionType,
         daysToResolution,
-        notes: createOutcomeDto.notes,
-        rootReferralId: referral.rootReferralId || referral.id, // Store root for easy querying
+        notes: dto.notes,
+        rootReferralId: referral.rootReferralId || referral.id,
       },
     });
+
+    this.logger.log(`Outcome created: ${outcome.id}`);
+
+    // 7. Handle referral continuation
+    if (
+      dto.resolutionType === ResolutionType.REFERRED_FURTHER ||
+      dto.resolutionType === ResolutionType.RESOLVED_REFERRED
+    ) {
+      this.logger.log(`Handling REFERRED_FURTHER chain continuation`);
+
+      if (dto.nextReferral) {
+        await this.referralService.createReferral(
+          dto.nextReferral,
+          fromDoctorId,
+          db,
+          ResolutionType.REFERRED_FURTHER,
+        );
+      }
+    }
   }
 }
