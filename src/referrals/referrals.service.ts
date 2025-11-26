@@ -15,7 +15,7 @@ export class ReferralsService {
     referralOutcome?: ResolutionType,
   ) {
     // 1. Verify patient exists
-    const patient = await this.prisma.patient.findUnique({
+    const patient = await db.patient.findUnique({
       where: { id: createReferralDto.patientId },
     });
 
@@ -24,7 +24,7 @@ export class ReferralsService {
     }
 
     // 2. Verify specialist exists
-    const toDoctor = await this.prisma.doctor.findUnique({
+    const toDoctor = await db.doctor.findUnique({
       where: { id: createReferralDto.toDoctorId },
     });
 
@@ -33,7 +33,7 @@ export class ReferralsService {
     }
 
     // 3. Get the doctor creating this referral
-    const fromDoctor = await this.prisma.doctor.findUnique({
+    const fromDoctor = await db.doctor.findUnique({
       where: { id: fromDoctorId },
     });
 
@@ -45,7 +45,7 @@ export class ReferralsService {
       if (referralOutcome === ResolutionType.REFERRED_FURTHER) {
         // This is a specialist referring to another specialist
         // Find the referral that brought this patient to me
-        const previousReferral = await this.prisma.referral.findFirst({
+        const previousReferral = await db.referral.findFirst({
           where: {
             toDoctorId: fromDoctorId, // Sent to ME
             patientId: createReferralDto.patientId, // For THIS patient
@@ -67,7 +67,7 @@ export class ReferralsService {
     }
 
     // 5. Create the referral
-    const referral = await this.prisma.referral.create({
+    const referral = await db.referral.create({
       data: {
         fromDoctorId,
         toDoctorId: createReferralDto.toDoctorId,

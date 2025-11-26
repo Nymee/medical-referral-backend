@@ -98,5 +98,11 @@ export class OutcomesService {
         );
       }
     }
+
+    if (
+      dto.resolutionType === ResolutionType.REFERRED_FURTHER ||
+      dto.resolutionType === ResolutionType.RESOLVED_REFERRED
+    ) {
+    }
   }
 }

@@ -17,7 +17,6 @@ datasource db {
 
 
 
-
 model Doctor {
   id            String     @id @default(uuid())
   email         String     @unique
@@ -30,12 +29,8 @@ model Doctor {
   
   referralsFrom Referral[] @relation("ReferralsFrom")
   referralsTo   Referral[] @relation("ReferralsTo")
+  score         Int
 }
-
-
-
-
-
 
 
 
@@ -54,38 +49,33 @@ model Patient {
 
 
 
-
-
-
-
 model Referral {
-  id               String    @id @default(uuid())
-  
-  fromDoctorId     String
-  toDoctorId       String
-  patientId        String
-  
-  conditionCode    String
-  subCondition     String?
-  notes            String?
-  
-  patientAge       Int
-  status           ReferralStatus @default(PENDING)
-  firstVisitDate   DateTime?
-  
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  
-  // Relations (for convenience)
-  fromDoctor       Doctor   @relation("ReferralsFrom", fields: [fromDoctorId], references: [id])
-  toDoctor         Doctor   @relation("ReferralsTo", fields: [toDoctorId], references: [id])
-  patient          Patient  @relation(fields: [patientId], references: [id])
-  
-  outcome          Outcome?
+  id              String    @id @default(uuid())
+  patientId       String
+  fromDoctorId    String
+  toDoctorId      String
+  conditionCode   String
+  subCondition    String?
+  notes           String?
+  patientAge      Int?
+  referralDepth   Int        @default(1)
+  status          String     @default("PENDING")
+
+  rootReferralId  String?                  
+  rootReferral    Referral? @relation("RootReferral", fields: [rootReferralId], references: [id])
+
+  childReferrals  Referral[] @relation("RootReferral")
+
+  fromDoctor      Doctor     @relation("ReferralsFrom", fields: [fromDoctorId], references: [id])
+  toDoctor        Doctor     @relation("ReferralsTo", fields: [toDoctorId], references: [id])
+
+  patient         Patient    @relation(fields: [patientId], references: [id])
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  outcome         Outcome?
 }
-
-
-
 
 
 
@@ -94,14 +84,16 @@ model Referral {
 model Outcome {
   id               String         @id @default(uuid())
   referralId       String         @unique
-  resolutionType   ResolutionType 
-  daysToResolution Int
+  resolutionType   ResolutionType
   notes            String?
-  createdAt        DateTime       @default(now())  // Changed from loggedAt
-  
-  referral         Referral       @relation(fields: [referralId], references: [id])
-    @@index([rootReferralId])  // Index for fast queries
+  daysToResolution Int
+  createdAt        DateTime       @default(now())
 
+  rootReferralId   String         // copied from referral at creation time
+
+  referral         Referral       @relation(fields: [referralId], references: [id])
+
+  @@index([rootReferralId])
 }
 
 
