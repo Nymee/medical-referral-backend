@@ -58,15 +58,9 @@ export class OutcomesService {
     if (referral.outcome)
       throw new BadRequestException('Outcome already exists for this referral');
 
-    // 4. Validate visit
-    if (!referral.firstVisitDate)
-      throw new BadRequestException(
-        'Please mark patient as visited before logging outcome',
-      );
-
     // 5. Compute days to resolution
     const daysToResolution = Math.floor(
-      (Date.now() - referral.firstVisitDate.getTime()) / (1000 * 60 * 60 * 24),
+      (Date.now() - dto.firstVisitDate) / (1000 * 60 * 60 * 24),
     );
 
     // 6. Create outcome
@@ -77,6 +71,8 @@ export class OutcomesService {
         daysToResolution,
         notes: dto.notes,
         rootReferralId: referral.rootReferralId || referral.id,
+        createdAt: new Date(),
+        firstVisitDate: BigInt(dto.firstVisitDate),
       },
     });
 

@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsEnum,
   ValidateNested,
+  IsInt,
 } from 'class-validator';
 import { ResolutionType } from '../../common/enums';
 import { Type } from 'class-transformer';
@@ -21,8 +22,12 @@ export class CreateOutcomeDto {
   @IsOptional()
   notes?: string;
 
+  @IsInt()
+  @IsNotEmpty()
+  firstVisitDate: number;
+
   @IsOptional()
   @ValidateNested()
   @Type(() => CreateReferralDto)
-  nextReferral?: CreateReferralDto; //
+  nextReferral?: CreateReferralDto;
 }

@@ -60,6 +60,7 @@ model Referral {
   patientAge      Int?
   referralDepth   Int        @default(1)
   status          String     @default("PENDING")
+  isBoomerang     Boolean    @default(false)
 
   rootReferralId  String?                  
   rootReferral    Referral? @relation("RootReferral", fields: [rootReferralId], references: [id])
@@ -75,6 +76,7 @@ model Referral {
   updatedAt       DateTime   @updatedAt
 
   outcome         Outcome?
+  
 }
 
 
@@ -88,6 +90,7 @@ model Outcome {
   notes            String?
   daysToResolution Int
   createdAt        DateTime       @default(now())
+  firstVisitDate   BigInt
 
   rootReferralId   String         // copied from referral at creation time
 

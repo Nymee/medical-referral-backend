@@ -14,8 +14,10 @@ export class ReferralsService {
     db?: DbClient,
     referralOutcome?: ResolutionType,
   ) {
+    const dbClient = db || this.prisma;
+
     // 1. Verify patient exists
-    const patient = await db.patient.findUnique({
+    const patient = await dbClient.patient.findUnique({
       where: { id: createReferralDto.patientId },
     });
 
@@ -24,7 +26,7 @@ export class ReferralsService {
     }
 
     // 2. Verify specialist exists
-    const toDoctor = await db.doctor.findUnique({
+    const toDoctor = await dbClient.doctor.findUnique({
       where: { id: createReferralDto.toDoctorId },
     });
 
@@ -33,19 +35,21 @@ export class ReferralsService {
     }
 
     // 3. Get the doctor creating this referral
-    const fromDoctor = await db.doctor.findUnique({
+    const fromDoctor = await dbClient.doctor.findUnique({
       where: { id: fromDoctorId },
     });
 
+    this.checkForBoomerang(createReferralDto, dbClient);
+
     // 4. Determine if this is a root or child referral
     let referralDepth = 1;
-    let rootReferralId = null;
+    let rootReferralId: string | null = null;
 
-    if (fromDoctor.role === 'SPECIALIST') {
+    if (fromDoctor?.role === 'SPECIALIST') {
       if (referralOutcome === ResolutionType.REFERRED_FURTHER) {
         // This is a specialist referring to another specialist
         // Find the referral that brought this patient to me
-        const previousReferral = await db.referral.findFirst({
+        const previousReferral = await dbClient.referral.findFirst({
           where: {
             toDoctorId: fromDoctorId, // Sent to ME
             patientId: createReferralDto.patientId, // For THIS patient
@@ -60,14 +64,14 @@ export class ReferralsService {
 
           // Find the root of the chain
           rootReferralId =
-            previousReferral.rootReferralId || previousReferral.id;
+            previousReferral.rootReferralId || previousReferral.id || null;
         }
       } else if (referralOutcome === ResolutionType.RESOLVED_REFERRED) {
       }
     }
 
     // 5. Create the referral
-    const referral = await db.referral.create({
+    const referral = await dbClient.referral.create({
       data: {
         fromDoctorId,
         toDoctorId: createReferralDto.toDoctorId,
@@ -94,5 +98,85 @@ export class ReferralsService {
     });
 
     return referral;
+  }
+
+  async checkForBoomerang(referralDto: CreateReferralDto, db: DbClient) {
+    const DAYS = 90;
+    const cutoffDate = new Date(Date.now() - DAYS * 24 * 60 * 60 * 1000);
+
+    // 1. Get latest resolved referral
+    const latestResolved = await db.referral.findFirst({
+      where: {
+        patientId: referralDto.patientId,
+        conditionCode: referralDto.conditionCode,
+        subCondition: referralDto.subCondition,
+        outcome: {
+          is: {
+            resolutionType: {
+              in: [
+                ResolutionType.FULLY_RESOLVED,
+                ResolutionType.RESOLVED_REFERRED,
+              ],
+            },
+          },
+        },
+      },
+      include: { outcome: true },
+      orderBy: { outcome: { createdAt: 'desc' } },
+    });
+
+    // No past resolved referral → no boomerang
+    if (!latestResolved) return;
+
+    // No outcome (should not happen) → skip
+    if (!latestResolved.outcome) return;
+
+    // 2. If this specific referral already boomeranged recently → don't penalize again
+    if (
+      latestResolved.isBoomerang &&
+      latestResolved.outcome.createdAt >= cutoffDate
+    ) {
+      return;
+    }
+
+    // 3. Count past boomerangs of THIS doctor for THIS issue
+    const pastBoomerangCount = await db.referral.count({
+      where: {
+        toDoctorId: latestResolved.toDoctorId,
+        patientId: referralDto.patientId,
+        conditionCode: referralDto.conditionCode,
+        subCondition: referralDto.subCondition,
+        isBoomerang: true,
+        outcome: {
+          is: {
+            createdAt: { gte: cutoffDate },
+          },
+        },
+      },
+    });
+
+    // 4. Determine penalty based on recurrence
+    const deduction = this.penalty(pastBoomerangCount);
+
+    // 5. Apply penalty to doctor
+    await db.doctor.update({
+      where: { id: latestResolved.toDoctorId },
+      data: {
+        score: { decrement: deduction },
+      },
+    });
+
+    // 6. Mark this referral as boomerang
+    await db.referral.update({
+      where: { id: latestResolved.id },
+      data: { isBoomerang: true },
+    });
+  }
+
+  penalty(n: number) {
+    if (n === 0) return 10; // 1st boomerang
+    if (n === 1) return 15; // 2nd boomerang
+    if (n === 2) return 20; // 3rd boomerang
+    return 25; // 4th+
   }
 }
